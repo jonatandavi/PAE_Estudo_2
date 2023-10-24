@@ -1,0 +1,283 @@
+---
+title: "Estudo 1"
+author: "Jonatan Almeida e Helbert Paulino"
+date: "2023-09-27"
+output:
+  pdf_document:
+    fig_caption: yes
+  html_document:
+    df_print: paged
+---
+
+```{r setup,results='hide',warning=FALSE,echo=FALSE,eval=FALSE}
+# A few initial definitions just to make sure all required packages are installed. Change as needed.
+# NOTE: It may echo some weird messages to the PDF on the first compile (package installation messages). Run twice and the problem will (hopefully) go away.
+if (!require(ggplot2, quietly = TRUE)){ 
+      install.packages("ggplot2")
+      }
+if (!require(devtools, quietly = TRUE)){
+      install.packages("devtools")
+      }
+ if (!require(broom, quietly = TRUE)){
+       devtools::install_github("dgrtwo/broom")
+      }
+if (!require(GGally, quietly = TRUE)){
+      install.packages("GGally")
+      }
+```
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+install.packages("devtools")                    # you only have to install it once
+library(devtools)
+install_github("rstudio/rmarkdown")             # you only have to install it once
+library(rmarkdown)
+render("Estudo_1.Rmd","pdf_document")    # this renders the pdf
+```
+
+## Resumo
+
+Este estudo de caso tem por objetivo realizar uma comparação estatística entre os dados coletados de alunos da UFMG nos semestres de 2016/2 e 2017/2. O objetivo principal é o levantamento de hipóteses que, através dos estimadores pontuais, permita responder a seguinte pergunta:
+
+> Existe alteração no estilo de vida entre os alunos do PPGEE de um semestre para outro?
+
+Para isso, utilizamos de um conjunto de dados disponíveis, cujos valores são compostos de: altura, idade, sexo,  peso e curso (PPGEE ou ENGSIS, incluído apenas nos dados de 2016/2).
+
+Para responder a essa pergunta, um dos estimadores pontuais que pode ser utilizado é o IMC (Índice de Massa Corporal), cuja relação matemática é dada por:
+
+$$ IMC=\frac{peso}{altura ^ 2} $$
+Apesar das limitações no uso do IMC para avaliar o condicionamento físico dos alunos, ele é um bom estimador pontual, que pode ser derivado dos dados originais. Além disso, tendo em vista que há dados diferentes nas tabelas e que há a possibilidade de haver diferenças nos valores médios do IMC para homens e mulheres, será necessária a utilização de alguns filtros nos dados e a analise será feita por subgrupos, masculino e feminino.
+
+## Design experimental
+
+A pergunta de interesse nos leva a definir os seguintes testes de hipoteses:
+
+$$\begin{cases} H_0: \mu_{2016} = \mu_{2017}&\\H_1: \mu_{2016} \neq \mu_{2017}\end{cases}$$
+
+Onde o parametro $\mu$ sigfica o IMC médio de cada turma. A hipotese $H_0$ significa que não houve altereção no estilo de vida entre os alunos e a hipotese $H_0$ significa que houve alteração, ou seja, as médias de IMC são diferentes entre os alunos.
+
+Para o IMC, existe as seguintes classificações:
+
+-   **IMC** $<$ 18,5kg/$m^2$ - baixo peso
+
+-   **IMC** $>$ 18,5 até 24,9kg/$m^2$ - eutrofia (peso adequado)
+
+-   **IMC** $\geq$ 25 até 29,9kg/$m^2$ - sobrepeso
+
+-   **IMC** $>$ 30,0kg/$m^2$ até 34,9kg/$m^2$ - obesidade grau 1
+
+-   **IMC** $>$ 35kg/$m^2$ até 39,9kg/$m^2$ - obesidade grau 2
+
+-   **IMC** $>$ 40kg/$m^2$ - obesidade extrema
+
+Pelo intervalo de classificações do IMC, nota-se que a alteração é sempre de 5 em 5 kg/$m^2$. Logo um valor interessante para o efeito minimo relevante ($\delta^*$) é uma alteração de 5 entre as médias do IMC ou uma alteração na classificação da média do IMC da turma. O teste estatistico será divido em duas análises, uma para o sexo masculino e uma para o sexo feminino. Então serão dois testes de hipoteses distintos.
+
+Como a variância da população não é conhecida e o N das amostras é menor que 30, utilizaremos o teste t com um $\alpha$ = 0,5.
+
+## Análise exploratória dos dados
+
+```{r loaddata, include=FALSE}
+data2016 = read.csv('https://raw.githubusercontent.com/fcampelo/Design-and-Analysis-of-Experiments/master/data%20files/imc_20162.csv')
+data2017 = read.csv('https://raw.githubusercontent.com/fcampelo/Design-and-Analysis-of-Experiments/master/data%20files/CS01_20172.csv', sep=";")
+```
+
+Já foi mencionado no *Resumo* que existem dados de alunos de graduação (ENGSIS) nos dados de 2016. O primeiro passo é expurgar estes dados para não contaminarem nossa amostra. Além disso, é de grande importância que os dados dos alunos sejam separados por ano e por sexo. Dessa forma, alguns procedimentos foram utilizados, executando a linguagem R para filtrar os dados.
+
+```{r filterdata, include=FALSE}
+ppgeeStudents1 = subset(data2016, Course=='PPGEE')
+female2016 = subset(ppgeeStudents1, Gender=='F')
+male2016 = subset(ppgeeStudents1, Gender=='M')
+female2017 = subset(data2017, Sex=='F')
+male2017 = subset(data2017, Sex=='M')
+```
+
+Como o parametro de interesse é o IMC, e valor dele não está explícito nos dados, foram combinados os valores da massa corporal e da altura dos alunos para calculá-lo. Feito isso, os valores foram agrupados na tabela de dados original.
+
+```{r imccalc, include=FALSE}
+female2016$imc <- (female2016$Weight.kg / (female2016$Height.m*female2016$Height.m))
+male2016$imc <- (male2016$Weight.kg / (male2016$Height.m*male2016$Height.m))
+female2017$imc <- (female2017$Weight.kg / (female2017$height.m*female2017$height.m))
+male2017$imc <- (male2017$Weight.kg / (male2017$height.m*male2017$height.m))
+```
+
+Plotar a distribuição dos dados de interesse é uma boa forma de entender qual o padrão dos dados para definir os testes a serem aplicados. Assim, seguem os histogramas dos dados de interesse em termos de densidade de probabilidade.
+
+```{r eval=FALSE, figures-side, fig.show="hold", include=FALSE, out.width="50%"}
+# Histograma de frequência
+hist(female2016$imc, xlab = 'IMC', ylab = 'Frequência', main = "IMC feminimo 2016")
+hist(male2016$imc, xlab = 'IMC', ylab = 'Frequência', main = "IMC masculino 2016")
+hist(female2017$imc, xlab = 'IMC', ylab = 'Frequência', main = "IMC feminimo 2017")
+hist(male2017$imc, xlab = 'IMC', ylab = 'Frequência', main = "IMC masculino 2017")
+```
+
+
+```{r echo=FALSE, figures-density, fig.show="hold", out.width="50%"}
+# Histograma com densidades
+densF16imc = density(female2016$imc)
+densF17imc = density(female2017$imc)
+densM16imc = density(male2016$imc)
+densM17imc = density(male2017$imc)
+
+hist(female2016$imc, xlab = 'IMC', ylab = 'Frequência', main = "IMC feminimo 2016", xlim=range(densF16imc$x), probability = T)
+lines(densF16imc, col = "blue")
+hist(male2016$imc, xlab = 'IMC', ylab = 'Frequência', main = "IMC masculino 2016", xlim=range(densM16imc$x), probability = T)
+lines(densM16imc, col = "blue")
+hist(female2017$imc, xlab = 'IMC', ylab = 'Frequência', main = "IMC feminimo 2017", xlim=range(densF17imc$x), probability = T)
+lines(densF17imc, col = "blue")
+hist(male2017$imc, xlab = 'IMC', ylab = 'Frequência', main = "IMC masculino 2017", xlim=range(densM17imc$x), probability = T)
+lines(densM17imc, col = "blue")
+```
+
+Nota-se que claramente os dados masculinos de 2016 e 2017 tendem a seguir uma distrubuição Normal, onde há indicios que o teste proposto anteriormente (t test) é adequado. Para testar essa hipótese, podemos utilizar o plot de quantis que é um bom gráfico para entender a distribuição dos dados. Para isso, usamos o QQ plot. As figuras abaixo ilustram esses gráficos:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, figures-sides, fig.show="hold", out.width="50%", paged.print=FALSE}
+library(car)
+invisible(qqPlot(female2016$imc))
+invisible(qqPlot(male2016$imc))
+invisible(qqPlot(female2017$imc))
+invisible(qqPlot(male2017$imc))
+```
+
+Em relação a interpretação do QQ Plot, caso os pontos se concentrem em torno de uma reta, existe indicios que é uma distrubuição Normal. Neste caso, podemos perceber que os dados masculinos seguem próximos da reta, o que caracterizaria como uma distribuição próxima da normal e, também, podemos notar que os dados femininos concetram-se em torno da reta. Além disso, tendo em vista o Teorema do Limite Central, cuja teoria mostra que, independentemente da distribuição de uma população, as médias retiradas da população seguirão uma distribuição normal.
+
+
+## Análise Estatística
+
+Os dados obtidos para os alunos variam em tamanho da amostra, sendo N \< 30 em todos os casos e com variância desconhecida. Dessa forma, o teste t é o indicado para a análise estatística. Para a avaliação dos dados, definimos os seguintes parâmetros:
+
+-   $\alpha$ $=$ 0,5
+-   $\delta^*$ $=$ 5 kg/$m^2$
+
+
+### Cálculo do IMC médio
+
+O cálculo do IMC médio é calculado baseado na seguinte fórmula:
+
+$$ \bar{IMC} = \frac{\sum_{i=1}^{N} \mu_i}{N}$$
+Em que $\mu$ é o valor médio do IMC das amostras e N é o tamanho da amostra.
+
+```{r imccavg, include=FALSE}
+meanFemIMC2016 = mean(female2016$imc)
+meanMaleIMC2016 = mean(male2016$imc)
+meanFemIMC2017 = mean(female2017$imc)
+meanMaleIMC2017 = mean(male2017$imc)
+```
+
+### Cálculo do desvio padrão
+
+O cálculo do desvio padrão amostral do IMC foi calculado baseado na seguinte fórmula:
+
+$$ s = \sqrt{\frac{\sum_{i=1}^{N} (x_i - \bar{x})}{N - 1}}$$
+Em que $x_i$ é o valor do IMC, $\bar{x}$ é o valor médio do IMC e o N é o tamanho da amostra.
+
+```{r imcsd, include=FALSE}
+sdFemIMC2016 = sd(female2016$imc)
+sdMaleIMC2016 = sd(male2016$imc)
+sdFemIMC2017 = sd(female2017$imc)
+sdMaleIMC2017 = sd(male2017$imc)
+```
+
+Além disso, tendo em vista que queremos comparar o valor do IMC médio das turmas, realizamos o teste bilateral, com intervalo de confiança 1 - $\alpha$ $=$ 0.95. Dessa forma, obtivemos os seguintes resultados:
+
+Comparando homens entre 2016 e 2017
+
+```{r ttest1, echo=FALSE, results='hold'}
+t.test(male2017$imc, alternative="two.sided", mu=meanMaleIMC2016, conf.level = 0.95)
+```
+
+Como se pode perceber, o valor médio do IMC dos homens de 2017 está dentro de um intervalo de confiança (22.72180 < $\mu$=24.93595 < 25.84921) esperado, quando se comparado à média dos homens de 2016. Isso também fica explícito pelo valor de p (0.3959), que é significativamente maior que o índice de significância.
+
+Comparando mulheres entre 2016 e 2017
+
+```{r ttest2, echo=FALSE, results='hold'}
+t.test(female2017$imc, alternative="two.sided", mu=meanFemIMC2016, conf.level = 0.95)
+```
+
+Diferentemente do caso dos homens, o valor médio do IMC das mulheres de 2017 está fora do um intervalo de confiança [15.89376, 20.99943] < $\mu$=21.08443 esperado, quando se comparado à média das mulheres de 2016. Isso também fica explícito pelo valor de p (0.04613), que é menor que o índice de significância escolhido. Deve-se, no entanto, levar em consideração que entre esses grupos há uma diferença no tamanho das amostras, sendo que em 2016 tinhamos 7 mulheres e em 2017 tinhamos apenas 4, enquanto para os homens o tamanho é 21. A redução no tamanho amostral pode não representar bem a realidade da população, causando impactos na análise.
+
+Tendo em vista que as mudanças no estilo de vida tem uma probabilidade maior de afetar o peso corporal das pessoas do que em suas alturas, avaliamos, também, o peso e a altura dos alunos. Dessa forma, para os pesos, temos as seguintes distribuições:
+
+```{r densityWeight, include=FALSE}
+densF16kg = density(female2016$Weight.kg)
+densF17kg = density(female2017$Weight.kg)
+densM16kg = density(male2016$Weight.kg)
+densM17kg = density(male2017$Weight.kg)
+```
+
+```{r weight, echo=FALSE, fig.show="hold", out.width="50%"}
+hist(female2016$Weight.kg, xlab = 'Kg', ylab = 'Frequência', main = "Peso feminimo 2016", xlim=range(densF16kg$x), probability = T)
+lines(densF16kg, col = "blue")
+hist(male2016$Weight.kg, xlab = 'Kg', ylab = 'Frequência', main = "Peso masculino 2016", xlim=range(densM16kg$x), probability = T)
+lines(densM16kg, col = "blue")
+hist(female2017$Weight.kg, xlab = 'Kg', ylab = 'Frequência', main = "Peso feminimo 2017", xlim=range(densF17kg$x), probability = T)
+lines(densF17kg, col = "blue")
+hist(male2017$Weight.kg, xlab = 'Kg', ylab = 'Frequência', main = "Peso masculino 2017", xlim=range(densM17kg$x), probability = T)
+lines(densM17kg, col = "blue")
+```
+
+```{r wHeigthAvg, include=FALSE}
+meanFemW2016 = mean(female2016$Weight.kg)
+meanMaleW2016 = mean(male2016$Weight.kg)
+meanFemW2017 = mean(female2017$Weight.kg)
+meanMaleW2017 = mean(male2017$Weight.kg)
+
+meanFemH2016 = mean(female2016$Height.m)
+meanMaleH2016 = mean(male2016$Height.m)
+meanFemH2017 = mean(female2017$height.m)
+meanMaleH2017 = mean(male2017$height.m)
+```
+
+Para os pesos, obtemos os seguintes valores de média:
+
+Mulheres 2016: 58.07143 kg
+
+Mulheres 2017: 49.25 kg
+
+Homens 2016: 76.85714 kg
+
+Homens 2017: 72.95714 kg
+
+Para as alturas, obtemos:
+
+Mulheres 2016: 1.654286 m
+
+Mulheres 2017: 1.635 m
+
+Homens 2016: 1.752857 m
+
+Homens 2017: 1.733333 m
+
+Desses dados, conforme o esperado, o valor médio do peso dos estudantes variou mais do que o valor da altura. Nesse caso, para as mulheres, obtivemos uma variação de -8.82 kg, enquanto para os homens esse valor foi de -3.9 kg. Considerando-se ainda que o peso dos homens é maior que o das mulheres, essa variação percentual é ainda mais acentuada para o sexo feminino, o que corrobora com o fato de que o IMC médio manteve-se dentro do intervalo de confiança para os homens, ao passo de que para as mulheres a variação estava fora do intervalo de confiança.
+
+### Determinação do poder de teste
+
+Uma das formas de verificar se o teste realizado apresenta potencial para rejeitar ou não rejeitar a hipótese nula é a estimação do poder to teste. Isso é feito em R através da função power.t.test. Além disso, podemos, a partir da estimação de uma propabilidade 1-$\beta$ (Erro do tipo II - Falso Negativo), podemos ter uma estimativa para o tamanho amostral que deveriamos ter. Para as amostras, temos os seguintes testes:
+
+Para os alunos de 2016
+```{r echo=FALSE}
+power.t.test(21,delta=5,sd=sdMaleIMC2016, sig.level=0.05, type="two.sample", alternative="two.sided")
+```
+
+Para os alunos de 2017
+```{r echo=FALSE}
+power.t.test(21,delta=5,sd=sdMaleIMC2017, sig.level=0.05, type="two.sample", alternative="two.sided")
+```
+
+Para as alunas de 2016
+```{r echo=FALSE}
+power.t.test(7,delta=5,sd=sdFemIMC2016, sig.level=0.05, type="two.sample", alternative="two.sided")
+```
+
+Para as alunas de 2017
+```{r echo=FALSE}
+power.t.test(4,delta=5,sd=sdFemIMC2017, sig.level=0.05, type="two.sample", alternative="two.sided")
+```
+
+Pode-se ver pelos testes acima, que a probabilidade de se cometer um erro do tipo II (falso negativo) é, em geral, inferior a 6%. Dessa forma, há uma chance alta de que os resultados do experimento permitam inferir algo sobre as hipóteses levantadas, com bom grau de confiabilidade.
+
+### Atividades específicas
+
+Ambos os autores realizaram a avaliação dos dados estatísticos, pesquisaram sobre a ferramenta utilizada para os cálculos, realizaram correções nos trabalhos, implementações em R e sugestão de testes.
+
+### Conclusões
+
+O experimento consistiu em avaliar os dados dos estudantes de 2016 e 2017 do PPGEE, para responder se houve alterações no estilo de vida deles. Para isso, avaliamos a média do IMC destes estudantes, definimos um nível de significância e estimamos um tamanho de efeito para realizamos alguns testes estatísticos, permitindo fundamentar nossa inferência sobre as hipóteses escolhidas. Basicamente, a hipótese nula é a de que não houve mudança no estilo de vida dos alunos, o que seria validado, caso as médias dos IMCs estivessem dentre de um intervalo de confiança calculado. Considerando-se o IMC e os testes executados, observou-se que para os homens os estimadores pontuais mantiveram-se dentro de um intervalo de tolerância (considerando nível de significância de 5%), o que nos permite inferir que a hipótese nula é verdadeira para esse caso e, logo, não obtivemos mudanças significativas no estilo de vida dos homens avaliados. Já para as mulheres, pode-se observar que o valor estava fora do intervalo de tolerância para o mesmo nível de significância utilizado. Logo, a hipótese nula deveria ser rejeitada, indicando que houve mudança no estilo de vida das alunas avaliadas. Além disso, conforme esperado, as variações de peso foram mais significativas do que as variações de altura, tendo as mulheres de 2016 uma variação maior que 8 kg, estando mais acima do peso. Já os homens obtiveram uma variação bem menor, de aproximadamente 4 kg. Deve-se, no entanto, levar em consideração que o peso dos homens é maior na média do que o das mulheres, e, logo, essa variação, em termos percentuais, é mais significativa para as mulheres do que para homens. Por outro lado, o tamanho da amostra para as mulheres é de 3 a 5 vezes menor do que o dos homens. Apesar do poder do teste indicar uma baixa probabilidade de ocorrer um erro do tipo II, seria interessante obter tamanhos amostrais próximos para comparação, ou um histórico mais longo de dados para as mulheres, permitindo inferir melhor sobre as hipóteses levantadas para a população.
