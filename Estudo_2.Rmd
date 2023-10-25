@@ -1,7 +1,7 @@
 ---
 title: "Estudo 2"
 author: "Jonatan Almeida e Helbert Paulino"
-date: "2023-10-22"
+date: "2023-10-25"
 output:
   pdf_document:
     fig_caption: yes
@@ -27,11 +27,11 @@ render("Estudo_2.Rmd","pdf_document")    # this renders the pdf
 
 ## Resumo
 
-Este estudo de caso tem por objetivo realizar comparações estatísticas entre os dados coletados de ações na bolsa de valores e determinar quais delas irão produzir melhor retornos financeiros para um investidor, que deseja investir todo o seu montante em uma dessas ações. Dessa forma, torna-se crucial determinar quais carteiras ofecerem maior variação positiva no preço das ações e, para isso, analisaremos o histórico delas.
+Este estudo de caso tem por objetivo realizar comparações estatísticas entre os dados coletados de ações na bolsa de valores e determinar quais delas irão produzir melhor retornos financeiros para um investidor, que deseja investir todo o seu montante em uma dessas ações. Dessa forma, torna-se crucial determinar qual ação ofecere maior variação positiva no preço e, para isso, analisaremos o histórico delas.
 
 ## Análise exploratória dos dados
 
-Os dados que analisaremos consistem no conjunto de fechamento de preços de cinco ações nos últimos 36 meses. Com isso, através do seu histórico, podemos analisar o desempenho de diferentes companhias, observando a condição de independência dos dados. Conforme a tabela obtida, a primeira linha é referente ao período mais atual (ou seja, a variação de preço desse mês para o anterior) até a última linha. Contudo, antes de realizar alguns testes estatísticos, vale a pena analisar graficamente os preços em nessas ações a fim de se obter uma consciência situacional sobre a situação de cada uma, podendo avaliar um balanço financeiro positivo ou negativo, e postular sobre quais seriam mais rentáveis, de forma hipotética. Para isso, vamos plotar para cada companhia o histórico das ações. Antes, para a plotagem temporal, torna-se necessário reordenar a tabela antes de fazer a plotagem. As figuras a seguir ilustram o processo para cada grupo de ações.
+Os dados que analisaremos consistem no conjunto de fechamento de preços de cinco ações nos últimos 36 meses. Com isso, através do seu histórico, podemos analisar o desempenho de diferentes companhias, observando a condição de independência dos dados. Conforme a tabela obtida, a primeira linha é referente ao período mais atual (ou seja, a variação de preço desse mês para o anterior) até a última linha. Contudo, antes de realizar alguns testes estatísticos, vale a pena analisar graficamente os preços em nessas ações a fim de se obter uma consciência situacional de cada uma. Podendo avaliar um balanço financeiro e postular sobre quais seriam mais rentáveis, de forma hipotética. Para isso, vamos plotar para cada companhia o histórico das ações. Antes, para a plotagem temporal, torna-se necessário reordenar a tabela antes de fazer a plotagem. As figuras a seguir ilustram o processo para cada grupo de ações.
 
 ```{r loaddata, include=FALSE}
 groupB = read.csv('data/DadosAcoesGrupoB.csv',header=FALSE)
@@ -77,11 +77,11 @@ plotVar(revB, 5, 45, "Historico da ação", "Preço")
 plotVar(100*varB, -3, 5, "Variação mensal", "Preço (%)" )
 ```
 
-Pode-se observar em uma primeira análise que a ação 4 (representado pela linha azul) apresenta maior indicativo de valorização, bem como é a que apresenta melhor variação percentual mensal. As ações em amarelo e roxo apresentam também tendência de crescimento, enquanto as ações em verde e vermelho demonstram tendência de queda. Isso, no entanto, precisa se avaliado com outras técnicas para avaliar se as ações variaram mesmo de forma significativa ao longo dos meses, o que será objeto de investigação nos testes de hipóteses.
+Pode-se observar em uma primeira análise que a ação 4 (representado pela linha azul) apresenta maior indicativo de valorização, bem como é a que apresenta melhor variação percentual mensal. As ações em amarelo e roxo apresentam também tendência de crescimento, enquanto as ações em verde e vermelho demonstram tendência de queda. Isso, no entanto, precisa ser avaliado com outras técnicas para inferir sobre a variação ao longo dos meses, o que será objeto de investigação nos testes de hipóteses.
 
 ## Análise Estatística
 
-Para poder classificar e determinar quais ações seriam as melhores a serem investidas (e se vale a pena investir nelas), temos que definir as hipóteses do experimento. Ao analisarmos as amostras, tendo em vista que são pertencentes a diferentes companhias, que, teoricamente, não possuem relação de dependência explícita, então podemos assumir que os dados são independentes (ou seja, iid). Além disso, tendo em vista que temos um N > 30, variância e média finitas, então podemos usar do TCL (Teorema Centra do Limite) para inferirmos que as médias seguirão uma distribuição normal.
+Para poder classificar e determinar qualis ações seriam as melhores a serem investidas (e se vale a pena investir nelas), temos que definir as hipóteses do experimento. Ao analisarmos as amostras, tendo em vista que são pertencentes a diferentes companhias, que, teoricamente, não possuem relação de dependência explícita, então podemos assumir que os dados são independentes (ou seja, iid). Além disso, tendo em vista que temos um N > 30, variância e média finitas, então podemos usar do TCL (Teorema Centra do Limite) para inferir que as médias seguirão uma distribuição normal.
 
 Se considerarmos o modelo estatístico baseado nos efeitos para cada nível, dado por:
 
@@ -91,7 +91,7 @@ em que i = 1,...,a (número de níveis) e j = 1,...,n (número de observações)
 Dessa forma, a pergunta de interesse nos leva a definir os seguintes testes de hipoteses:
 
 $$\begin{cases} H_0: \tau_{i} = 0, \forall i \in [1,a] \\H_1: \exists\tau_{i} \neq 0\end{cases}$$
-Ou seja, dentro de um determinado valor de tolerância, os efeitos dos níveis são nulos ou para algum dos níveis ele varia de forma significativa? Para avaliar isso, utilizaremos o box plot para observarmos a variabilidade para daca nível, bem como eventuais assimetrias.
+Ou seja, dentro de um determinado valor de tolerância, os efeitos dos níveis são nulos ou para algum dos níveis ele varia de forma significativa? Para avaliar isso, utilizaremos o box plot para observarmos a variabilidade para cada nível, bem como eventuais assimetrias. Para garantir confiabilidade em nosso teste, será definido um $\alpha = 0.05$.
 
 ```{r boxPlot, echo=FALSE}
 #Box plot
@@ -106,20 +106,32 @@ my.model <- aov(values ~ ind, data = returns)
 summary.aov(my.model)
 ```
 
-Nesse teste, obtemos o p-valor de 1.2x10^-15, que é significativamente menos que um $\alpha$ tipicamente escolhido de 0.05. Nesse caso, há pelo menos um dos níveis em que temos um efeito significativamente maior que 0. Contudo, vale a pena checar se as premissas adotadas (independência e normalidade) foram atendidas. Para isso, aplicaremos o teste de Shapiro-Wilk.
+Nesse teste, obtemos o p-valor de 1.2x10^-15, que é significativamente menos que um $\alpha$ ($p-valor < 0.05$). Nesse caso, há pelo menos um dos níveis em que temos um efeito significativamente maior que 0. Contudo, vale a pena checar se as premissas adotadas (independência e normalidade) foram atendidas. Para isso, aplicaremos o teste de Shapiro-Wilk com $\alpha=0.05$.
 
 ```{r normalTest, echo=FALSE}
 #Premissa da normalidade comprovada
 shapiro.test(my.model$residuals)
-library(car)
-qqPlot(my.model$residuals, ylab="data", pch = 16, lwd = 3, cex = 2, las = 1)
 ```
+Segundo o teste Shapiro-Wilk, obtemos um valor de p-valor superior a um $\alpha=0.05$, porém este valor não é muito menor que nosso $\alpha$. Então vamos analisar gáficamente.
+
+```{r histResiduals, echo=FALSE}
+#Teste
+library(car)
+qqPlot(my.model$residuals, ylab="data", pch = 16, lwd = 3, cex = 1, las = 1)
+hist(my.model$residuals)
+```
+Observado o QQPlot, observa-se indicios de normalidade nos residuos do modelo. Quando olhamos o histograma dos residuos, notamos também uma similaridade com a distribuição normal. Portanto, vamos considerar normalidade nos dados.
+
+Um teste importante é o teste de homoscedasticidade, que diz basicamente, onde temos como hipotese nula que as variancias são homogeneas. Para isso utilizaremos o teste de Fligner com $\alpha=0.05$.
 
 ```{r homoscedasticity, echo=FALSE}
 #premissa da homoscedasticidade
 fligner.test(values ~ ind, data = returns)
 plot(x = my.model$fitted.values, y = my.model$residuals)
 ```
+Com um $p-valor>\alpha$, temos como resultado da homoscedasticidade, a não rejeição da hipotese nula, ou seja, os dados possuem variancias homogeneas.
+
+Com toda essa analise realizada, podemos agora realizar uma comparação estatistica de cada ação para dizer realmente qual é a melhor ação para investir. Para isso utilizaremos uma abordagem denominade de "Todos contra todos" atraves do metodo de Tukey, que possui é conhecido como Abordagem de Diferença Significativa Honesta. Para isso sera escolhido um $\alpha=0,05$, ou seja, um nivel de 0,95 para o teste.
 
 ```{r tukeyTest, echo=FALSE}
 #Teste de Tukey (todos contra todos) dizendo qual é a melhor ação
@@ -132,7 +144,7 @@ mc1_CI
 ```{r plot2, echo=FALSE}
 plot(mc1_CI)
 ```
-
+Podemos observar claramente no resultado gráfico que a ação X4 obteve um melhor resultado em relação as demais. Seguido da ação 5, que também teve um resultado muito bom. Quando olhamos para o BoxPlot, observamos exatamente este comportamento.
 
 ### Determinação do poder de teste
 
@@ -148,4 +160,4 @@ Ambos os autores realizaram a avaliação dos dados estatísticos, pesquisaram s
 
 ### Conclusões
 
-xxx
+Concluimos que existe sim uma ação melhor para investimento. A ação 4 obteve o melhor resultado no teste "Todos contra Todos". A ação 5 também obteve um resultado interessante, porém analistando o BoxPlot é uma ação que possui uma variabilidade maior que a 4. Logo, com um resultado maior e uma variabilidade menor, a ação com melhor retorno é a 4.

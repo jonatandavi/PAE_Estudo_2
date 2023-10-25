@@ -30,6 +30,8 @@ qqPlot(my.model$residuals,
        lwd = 3,
        cex = 2,
        las = 1)
+
+hist(my.model$residuals)
   
 #premissa da homoscedasticidade
 fligner.test(values ~ ind, data = returns)
