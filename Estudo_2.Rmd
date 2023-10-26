@@ -106,53 +106,75 @@ my.model <- aov(values ~ ind, data = returns)
 summary.aov(my.model)
 ```
 
-Nesse teste, obtemos o p-valor de 1.2x10^-15, que é significativamente menos que um $\alpha$ ($p-valor < 0.05$). Nesse caso, há pelo menos um dos níveis em que temos um efeito significativamente maior que 0. Contudo, vale a pena checar se as premissas adotadas (independência e normalidade) foram atendidas. Para isso, aplicaremos o teste de Shapiro-Wilk com $\alpha=0.05$.
+Nesse teste, obtemos o p-valor de 1.2x$10^{-15}$, que é significativamente menos que um $\alpha$ (p-valor < 0.05). Nesse caso, há pelo menos um dos níveis em que temos um efeito significativamente maior que 0. Contudo, vale a pena checar se as premissas adotadas (independência e normalidade) foram atendidas. Para isso, aplicaremos o teste de Shapiro-Wilk com $\alpha=0.05$.
 
 ```{r normalTest, echo=FALSE}
 #Premissa da normalidade comprovada
 shapiro.test(my.model$residuals)
 ```
-Segundo o teste Shapiro-Wilk, obtemos um valor de p-valor superior a um $\alpha=0.05$, porém este valor não é muito menor que nosso $\alpha$. Então vamos analisar gáficamente.
 
-```{r histResiduals, echo=FALSE}
-#Teste
+
+Segundo o teste Shapiro-Wilk, obtemos um valor de p-valor superior a um $\alpha$=0.05, o que indica que, dentro do intervalo de confiança estabelecido, não podemos garantir sobre a normalidade dos dados. Contudo, o teste ANOVA é robusto a violações moderadas na mormalidade. Então vamos analisar gáficamente.
+
+```{r histResiduals, include=FALSE}
 library(car)
-qqPlot(my.model$residuals, ylab="data", pch = 16, lwd = 3, cex = 1, las = 1)
-hist(my.model$residuals)
+densResiduals = density(my.model$residuals)
 ```
-Observado o QQPlot, observa-se indicios de normalidade nos residuos do modelo. Quando olhamos o histograma dos residuos, notamos também uma similaridade com a distribuição normal. Portanto, vamos considerar normalidade nos dados.
 
-Um teste importante é o teste de homoscedasticidade, que diz basicamente, onde temos como hipotese nula que as variancias são homogeneas. Para isso utilizaremos o teste de Fligner com $\alpha=0.05$.
+```{r plothistResiduals, echo=FALSE}
+qqPlot(my.model$residuals, ylab="data", pch = 16, lwd = 3, cex = 1, las = 1)
+hist(my.model$residuals, xlab='Residuals', ylab='Frequência', main='Frequency of residuals', xlim=range(densResiduals$x), probability = T)
+lines(densResiduals, col = "blue")
+```
 
-```{r homoscedasticity, echo=FALSE}
+Observado o QQPlot, observa-se indicios de normalidade nos residuos do modelo. Quando olhamos o histograma dos residuos, notamos também uma similaridade com a distribuição normal. Portanto, vamos considerar normalidade nos dados e avaliar outras condições de teste.
+
+Um teste importante é o teste de homoscedasticidade, que assume como hipotese nula que as variancias são homogeneas. Para isso utilizaremos o teste de Fligner com $\alpha$=0.05.
+
+```{r homoscedasticity, include=FALSE}
 #premissa da homoscedasticidade
 fligner.test(values ~ ind, data = returns)
-plot(x = my.model$fitted.values, y = my.model$residuals)
 ```
-Com um $p-valor>\alpha$, temos como resultado da homoscedasticidade, a não rejeição da hipotese nula, ou seja, os dados possuem variancias homogeneas.
 
-Com toda essa analise realizada, podemos agora realizar uma comparação estatistica de cada ação para dizer realmente qual é a melhor ação para investir. Para isso utilizaremos uma abordagem denominade de "Todos contra todos" atraves do metodo de Tukey, que possui é conhecido como Abordagem de Diferença Significativa Honesta. Para isso sera escolhido um $\alpha=0,05$, ou seja, um nivel de 0,95 para o teste.
+```{r plotHomocedasticity, echo=FALSE}
+plot(x = my.model$fitted.values, y = my.model$residuals, ylab='Residuos',xlab='Valores ajustados')
+```
 
-```{r tukeyTest, echo=FALSE}
+Com um p-valor > $\alpha$, temos como resultado da homoscedasticidade, a não rejeição da hipotese nula, ou seja, os dados possuem variancias homogeneas.
+
+Por fim, tendo em vista que as premissas do teste ANOVA foram suficientemente atendidas, podemos rejeitar $H_0$ com o nível de confiança desejado. Contudo, ainda é interessante analisar quais os níveis do fator que apresenta efeito significativo para contribuir com esse resultado, o que definirá o poder do teste.
+
+### Determinação do poder de teste
+
+Após toda essa analise sobre as hipóteses, podemos agora realizar uma comparação estatistica de cada ação para dizer realmente qual é a melhor ação para investir. Para isso utilizaremos uma abordagem denominada de "Todos contra todos" atraves do metodo de Tukey, que é conhecido como Abordagem de Diferença Significativa Honesta. Para isso sera escolhido um $\alpha=0,05$, ou seja, um nivel de confiança 95% para o teste.
+
+```{r tukeyTest, include=FALSE}
 #Teste de Tukey (todos contra todos) dizendo qual é a melhor ação
 library(multcomp)
 mc1 <- glht(my.model, linfct = mcp(ind = "Tukey"))
 mc1_CI <- confint(mc1, level = 0.95)
-mc1_CI
 ```
 
-```{r plot2, echo=FALSE}
+```{r plotTukey, echo=FALSE}
 plot(mc1_CI)
 ```
-Podemos observar claramente no resultado gráfico que a ação X4 obteve um melhor resultado em relação as demais. Seguido da ação 5, que também teve um resultado muito bom. Quando olhamos para o BoxPlot, observamos exatamente este comportamento.
 
-### Determinação do poder de teste
+Podemos observar no gráfico que a ação X4 obteve um melhor resultado em relação às demais. Seguido da ação 5, que também teve um resultado muito bom. Quando olhamos para o BoxPlot, observamos exatamente este comportamento. Para complementar a análise, utilizaremos o teste de Dunnett, que possui sensibilidade mais alta que o teste de Tukey.
 
-xxx
-
-```{r echo=FALSE}
-#power.t.test(21,delta=5,sd=sdMaleIMC2016, sig.level=0.05, type="two.sample", alternative="two.sided")
+```{r dunnettTest, include=FALSE}
+#Teste de dunnett
+returns$ind<-relevel(returns$ind, ref="X4")
+my.model <- aov(values ~ ind, data = returns)
+mc2 <-glht(my.model, linfct = mcp(ind="Dunnett"))
+mc2_CI <-confint(mc2, level = 0.95)
 ```
+
+```{r plotDunnet, echo=FALSE}
+plot(mc2_CI)
+```
+
+Como pode-se observar, as diferenças significativas foram maiores entre as ações 1 e 4, e que entre as ações 5 e 4 as variações foram menores, isso é esperado, conforme os testes anteriores e os gráficos dos dados
+
 
 ### Atividades específicas
 
@@ -160,4 +182,4 @@ Ambos os autores realizaram a avaliação dos dados estatísticos, pesquisaram s
 
 ### Conclusões
 
-Concluimos que existe sim uma ação melhor para investimento. A ação 4 obteve o melhor resultado no teste "Todos contra Todos". A ação 5 também obteve um resultado interessante, porém analistando o BoxPlot é uma ação que possui uma variabilidade maior que a 4. Logo, com um resultado maior e uma variabilidade menor, a ação com melhor retorno é a 4.
+A partir dos testes, podemos concluir que existe sim uma ação melhor para investimento. A ação 4 obteve o melhor resultado no teste de Tukey e Dunnett, enquanto a ação 5 também obteve um resultado interessante. Porém analistando o BoxPlot, esta última é uma ação que possui uma variabilidade maior que a 4. Logo, com um resultado maior e uma variabilidade menor, a ação com melhor retorno é a 4. Em contrapartida, a ação que apresentou menor potencial de retorno foi a ação 1, possuindo baixo retorno. Já a ação 3, pelo BoxPlot e pelo grápfico de variação das ações, é possível perceber que foi o que apresentou maior variabilidade, demonstrando ser uma ação de maior risco que as demais, com uma desvalorização média próxima de 1% ao mês, nos 5 primeiros meses.
